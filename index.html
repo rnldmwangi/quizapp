@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CDACC Interactive Quiz App</title>
+    <title>Dynamic Interactive Quiz System</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -96,7 +96,6 @@
     <main id="main-content" class="flex-grow flex flex-col relative w-full max-w-5xl mx-auto p-4 md:p-8 justify-center">
 
         <div x-show="view === 'onboarding'" class="w-full max-w-md mx-auto relative" x-transition.opacity>
-            
             <div class="absolute -top-16 right-4 animate-bee-float flex items-center gap-3 z-30">
                 <div class="bg-gold text-black text-[11px] font-mono font-black px-3 py-1.5 rounded-lg shadow-xl relative uppercase border border-black/20">
                     Let's set up your profile 👇
@@ -144,7 +143,6 @@
         </div>
 
         <div x-show="view === 'dashboard'" class="w-full space-y-6" x-transition.opacity>
-            
             <div x-show="offlineFallbackActive" class="p-4 rounded-xl border border-gold/30 bg-gold/10 flex items-center justify-between text-xs font-mono">
                 <span class="text-gold font-bold">⚠️ OFFLINE MODE ACTIVE: USING DOWNLOADED CONTEXT QUIZ DATA</span>
                 <span class="opacity-60">Status: Local Only</span>
@@ -226,7 +224,6 @@
                             </table>
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -253,7 +250,7 @@
                                 :class="isDark ? 'border-dark-border text-dark-text' : 'border-light-border text-light-text'">
                             <option value="">-- Choose Course Target --</option>
                             <template x-for="course in internalSchema.courses" :key="course.id">
-                                <option :value="course.id" x-text="`[${course.code}] ${course.name}`"></option>
+                                <option :value="course.id" x-text="`${course.icon} [${course.code}] ${course.name}`"></option>
                             </template>
                         </select>
                     </div>
@@ -271,13 +268,39 @@
                     </div>
 
                     <div class="transition duration-200" :class="wizardState.unitId ? 'opacity-100' : 'opacity-25 pointer-events-none'">
-                        <label class="block text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">3. Select Quiz Assessment</label>
+                        <label class="block text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">3. Assessment Track</label>
+                        <div class="flex gap-6 mt-2 px-1">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" value="CAT" x-model="wizardState.track" @change="handleWizardTrackSelection()" class="w-4 h-4 accent-accent">
+                                <span class="font-bold">Continuous Assessment (CAT)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" value="EXAM" x-model="wizardState.track" @change="handleWizardTrackSelection()" class="w-4 h-4 accent-accent">
+                                <span class="font-bold">Summative Exam</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="transition duration-200" x-show="wizardState.track === 'CAT'" :class="wizardState.track ? 'opacity-100' : 'opacity-25 pointer-events-none'">
+                        <label class="block text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">4. Select Learning Element CAT</label>
                         <select x-model="wizardState.assessmentId"
                                 class="w-full border px-4 py-3 rounded-xl focus:outline-none focus:border-accent transition bg-transparent"
                                 :class="isDark ? 'border-dark-border text-dark-text' : 'border-light-border text-light-text'">
-                            <option value="">-- Choose Targeted Quiz Node --</option>
-                            <template x-for="assessment in wizardScope.assessments" :key="assessment.id">
-                                <option :value="assessment.id" x-text="`[${assessment.type}] ${assessment.name}`"></option>
+                            <option value="">-- Choose Element CAT Node --</option>
+                            <template x-for="cat in wizardScope.filteredAssessments" :key="cat.id">
+                                <option :value="cat.id" x-text="cat.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div class="transition duration-200" x-show="wizardState.track === 'EXAM'" :class="wizardState.track ? 'opacity-100' : 'opacity-25 pointer-events-none'">
+                        <label class="block text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">4. Select Exam Version</label>
+                        <select x-model="wizardState.assessmentId"
+                                class="w-full border px-4 py-3 rounded-xl focus:outline-none focus:border-accent transition bg-transparent"
+                                :class="isDark ? 'border-dark-border text-dark-text' : 'border-light-border text-light-text'">
+                            <option value="">-- Choose Final Exam Version --</option>
+                            <template x-for="exam in wizardScope.filteredAssessments" :key="exam.id">
+                                <option :value="exam.id" x-text="`Version ${exam.version} - ${exam.name} (${exam.duration} ${exam.durationUnit})`"></option>
                             </template>
                         </select>
                     </div>
@@ -291,7 +314,6 @@
         </div>
 
         <div x-show="view === 'assessment' && activeAssessment" class="w-full relative py-6" x-transition.opacity>
-            
             <div class="absolute left-0 md:-left-8 top-1/2 -translate-y-1/2 z-40">
                 <button @click="prevQuestion()" :disabled="evaluationIndex === 0"
                         class="p-4 rounded-xl border bg-dark-surface/80 backdrop-blur-md transition-all text-gold hover:scale-110 disabled:opacity-0 disabled:hover:scale-100"
@@ -435,11 +457,11 @@
                 user: { id: '', name: 'Student X', avatar: '🤓', xp: 0, isGuest: false },
                 completedReports: {},
                 
-                // Form setup parameters initialized with default suggestions requested
                 formUser: { name: 'Student X', avatar: '🤓' },
                 
-                wizardState: { courseId: '', unitId: '', assessmentId: '' },
-                wizardScope: { units: [], assessments: [] },
+                // Advanced Schema Mapping Wizard State Object Tracker
+                wizardState: { courseId: '', unitId: '', track: '', assessmentId: '' },
+                wizardScope: { units: [], baseAssessments: [], filteredAssessments: [] },
                 
                 activeAssessment: null,
                 evaluationIndex: 0,
@@ -456,6 +478,31 @@
                 showProfileModal: false,
                 showConversionPrompt: false,
                 offlineFallbackActive: false,
+
+                // Computed metrics derived natively on-demand from historical local storage array mappings
+                get calculatedMetrics() {
+                    const logs = Object.values(this.completedReports);
+                    if (logs.length === 0) return { total: 0, catAvg: 0, examAvg: 0, grade: 'N/A' };
+
+                    const cats = logs.filter(r => r.type === 'CAT');
+                    const exams = logs.filter(r => r.type === 'EXAM');
+
+                    const catSum = cats.reduce((sum, r) => sum + r.score, 0);
+                    const examSum = exams.reduce((sum, r) => sum + r.score, 0);
+
+                    const catAvg = cats.length ? Math.round(catSum / cats.length) : 0;
+                    const examAvg = exams.length ? Math.round(examSum / exams.length) : 0;
+
+                    // Composite Grade evaluation scoring calculation Matrix
+                    const aggregateVal = Math.round((logs.reduce((s, r) => s + r.score, 0)) / logs.length);
+                    let targetGrade = 'E';
+                    if (aggregateVal >= 80) targetGrade = 'A';
+                    else if (aggregateVal >= 70) targetGrade = 'B';
+                    else if (aggregateVal >= 60) targetGrade = 'C';
+                    else if (aggregateVal >= 50) targetGrade = 'D';
+
+                    return { total: logs.length, catAvg, examAvg, grade: targetGrade };
+                },
 
                 async bootSequence() {
                     this.initializeHardwareThemeProfile();
@@ -505,7 +552,6 @@
                     }
                 },
 
-                // Low-Connectivity Tolerance Local Offline Caching Algorithm Routine
                 async ingestEvaluationSchemaMatrix() {
                     try {
                         const targetEndpointResponse = await fetch('data.json');
@@ -513,8 +559,6 @@
                         
                         const extractedDataJson = await targetEndpointResponse.json();
                         this.internalSchema = this.verifyDataSanityGuards(extractedDataJson);
-                        
-                        // Synchronously push clean payload data objects into cache memory space
                         localStorage.setItem('cache_offline_schema', JSON.stringify(this.internalSchema));
                     } catch (networkFailureException) {
                         console.warn("Offline fallback activation running.");
@@ -579,27 +623,51 @@
                 },
 
                 launchAssessmentWizard() {
-                    this.wizardState = { courseId: '', unitId: '', assessmentId: '' };
-                    this.wizardScope = { units: [], assessments: [] };
+                    this.wizardState = { courseId: '', unitId: '', track: '', assessmentId: '' };
+                    this.wizardScope = { units: [], baseAssessments: [], filteredAssessments: [] };
                     this.view = 'wizard';
                 },
 
                 handleWizardCourseSelection() {
                     const targetCourseMatch = this.internalSchema.courses.find(c => c.id === this.wizardState.courseId);
                     this.wizardScope.units = targetCourseMatch ? targetCourseMatch.units : [];
-                    this.wizardState.unitId = '';
-                    this.wizardScope.assessments = [];
-                    this.wizardState.assessmentId = '';
+                    this.resetWizardDropdownBelow('course');
                 },
 
                 handleWizardUnitSelection() {
                     const targetUnitMatch = this.wizardScope.units.find(u => u.id === this.wizardState.unitId);
-                    this.wizardScope.assessments = targetUnitMatch ? targetUnitMatch.assessments : [];
+                    this.wizardScope.baseAssessments = targetUnitMatch ? targetUnitMatch.assessments : [];
+                    this.resetWizardDropdownBelow('unit');
+                },
+
+                // Dynamic selector stream engine routine handling any track configuration mutation array references
+                handleWizardTrackSelection() {
                     this.wizardState.assessmentId = '';
+                    if (!this.wizardState.track) {
+                        this.wizardScope.filteredAssessments = [];
+                        return;
+                    }
+                    this.wizardScope.filteredAssessments = this.wizardScope.baseAssessments.filter(
+                        assessment => assessment.type === this.wizardState.track
+                    );
+                },
+
+                resetWizardDropdownBelow(level) {
+                    if (level === 'course') {
+                        this.wizardState.unitId = '';
+                        this.wizardState.track = '';
+                        this.wizardState.assessmentId = '';
+                        this.wizardScope.baseAssessments = [];
+                        this.wizardScope.filteredAssessments = [];
+                    } else if (level === 'unit') {
+                        this.wizardState.track = '';
+                        this.wizardState.assessmentId = '';
+                        this.wizardScope.filteredAssessments = [];
+                    }
                 },
 
                 compileAndExecuteAssessmentNode() {
-                    const chosenAssessmentNode = this.wizardScope.assessments.find(a => a.id === this.wizardState.assessmentId);
+                    const chosenAssessmentNode = this.wizardScope.filteredAssessments.find(a => a.id === this.wizardState.assessmentId);
                     if (chosenAssessmentNode) {
                         this.activeAssessment = JSON.parse(JSON.stringify(chosenAssessmentNode));
                         this.evaluationIndex = 0;
@@ -695,6 +763,7 @@
 
                 recalculateHorizontalProgressBar() {
                     const operationalTotal = this.activeAssessment.questions.length;
+                    if (operationalTotal === 0) { this.horizontalBarProgress = 0; return; }
                     let computationalRatio = (this.evaluationIndex / operationalTotal) * 100;
                     if (this.questionSolved && this.evaluationIndex === operationalTotal - 1) {
                         computationalRatio = 100;
@@ -723,7 +792,7 @@
                     } else {
                         setTimeout(() => { 
                             this.view = 'dashboard'; 
-                            this.announceAccessibilityA11yEvent(`Quiz finalized. Final efficiency: ${calculatedYieldEfficiency} percent.`);
+                            this.announceAccessibilityA11yEvent(`Quiz finalized. Final score efficiency: ${calculatedYieldEfficiency} percent.`);
                         }, 1200);
                     }
                 },
